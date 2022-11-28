@@ -1,23 +1,32 @@
-import { ethers } from "hardhat";
+import { Contract, ContractFactory } from "ethers";
+import { ethers, upgrades } from "hardhat";
 
 async function main() {
-  const currentTimestampInSeconds = Math.round(Date.now() / 1000);
-  const ONE_YEAR_IN_SECS = 365 * 24 * 60 * 60;
-  const unlockTime = currentTimestampInSeconds + ONE_YEAR_IN_SECS;
+  //const [deployer] = await ethers.getSigner
+  //s();
+  const PredictTeamWin: ContractFactory = await ethers.getContractFactory("PredictTeamWin");
+  const predictTeamWin: Contract = await upgrades.deployProxy(
+    PredictTeamWin,
+    ["0x9682c81CF7FbF006b4e823185acA44a6084E86Cc", "0x0B4769d0c9B42F1c3f929b86401C05A1498E2883"],
+    { kind: "uups", initializer: "init" },
+  );
+  await predictTeamWin.deployed();
 
-  const lockedAmount = ethers.utils.parseEther("1");
+  console.log("Predict team win Proxy Contract deployed to: ", predictTeamWin.address);
+  console.log(
+    "Pridct team win Implementation deployed to: ",
+    await upgrades.erc1967.getImplementationAddress(predictTeamWin.address),
+  );
 
-  const Lock = await ethers.getContractFactory("Lock");
-  const lock = await Lock.deploy(unlockTime, { value: lockedAmount });
-
-  await lock.deployed();
-
-  console.log(`Lock with 1 ETH and unlock timestamp ${unlockTime} deployed to ${lock.address}`);
+  // const CommitUtil: ContractFactory = await ethers.getContractFactory("CommitUtil");
+  // const commitUtil: Contract = await CommitUtil.deploy();
+  // await commitUtil.deployed();
+  // console.log("CommitUtil deployed to ", commitUtil.address);
 }
 
-// We recommend this pattern to be able to use async/await everywhere
-// and properly handle errors.
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+main()
+  .then(() => process.exit(0))
+  .catch(error => {
+    console.error(error);
+    process.exit(1);
+  });
