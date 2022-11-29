@@ -6,19 +6,13 @@ import "./interfaces/IAuthority.sol";
 import "./internal-upgradeable/BaseUpgradeable.sol";
 import "./internal-upgradeable/FundForwarderUpgradeable.sol";
 
-// import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-// import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-// import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-
 contract PredictTeamWin is BaseUpgradeable, FundForwarderUpgradeable {
-  bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
-  bytes32 public constant DEFAULT_ADMIN_ROLE = keccak256("DEFAULT_ADMIN_ROLE");
+  event PredictChampion(address user_, uint8 teamId_, uint256 amount_);
 
   uint8 private teamWin;
-  address public Treasury;
-  address public CommandGate;
-  address public PaymentToken;
   uint256 private totalReward;
+  address public commandGateAddress;
+  address public paymentTokenAddress;
 
   mapping(uint8 => uint256) private teamTotal;
   mapping(address => mapping(uint8 => uint256)) private userBetTotal;
@@ -29,13 +23,15 @@ contract PredictTeamWin is BaseUpgradeable, FundForwarderUpgradeable {
   }
 
   modifier onlyCommandGate() {
-    require(msg.sender == CommandGate, "Not Command Gate");
+    require(msg.sender == commandGateAddress, "Not Command Gate");
     _;
   }
 
   function init(ITreasury treasury_, IAuthority authority_) public initializer {
     __Base_init_unchained(authority_, Roles.TREASURER_ROLE);
     __FundForwarder_init_unchained(treasury_);
+    commandGateAddress = 0xaE7B8FDd75B9F2C73987E1396e773Ea111CE7106;
+    paymentTokenAddress = 0x54c704E9d92B08C744112e9E1fE03A61245855F2;
   }
 
   function updateTreasury(
@@ -46,26 +42,26 @@ contract PredictTeamWin is BaseUpgradeable, FundForwarderUpgradeable {
   }
 
   function predictChampion(uint8 id_, address user_, address token_, uint256 value_) external onlyCommandGate {
-    require(token_ != PaymentToken, "Invalid payment token.");
-    //
+    require(token_ == paymentTokenAddress, "Invalid payment token.");
+    IERC20Upgradeable(paymentTokenAddress).approve(commandGateAddress, value_);
     teamTotal[id_] += value_;
     totalReward += value_;
     userBetTotal[user_][id_] += value_;
+
+    emit PredictChampion(user_, id_, value_);
   }
 
-  function setTeamWin(uint8 id_) external onlyRole(Roles.OPERATOR_ROLE) {
-    teamWin = id_;
+  function getUserBetWithAddress(address user_, uint8 id_) external view returns (uint256) {
+    uint256 amount = userBetTotal[user_][id_];
+    return amount;
   }
 
-  function resultChampion(address user_, address token_, uint256 value_) external {
-    require(userBetTotal[user_][teamWin] != 0, "Unsettle bet");
-    //
-    //uint256 percentTeamTotalBet = (teamTotal[teamWin] / totalReward);
-    // uint256 percentUserTotalBet = (userBetTotal[user_][teamWin] / totalReward) * 100;
-    //uint256 userReward = (totalReward * (1 - percentTeamTotalBet)) + userBetTotal[user_][teamWin];
-    uint256 percentReward = ( 2^64 * totalReward - teamTotal[teamWin] ) / totalReward;
-    uint256 userReward = ;
-    userBetTotal[user_][teamWin] = 0;
+  function updatePaymentToken(address paymentToken_) external onlyRole(Roles.UPGRADER_ROLE) {
+    paymentTokenAddress = paymentToken_;
+  }
+
+  function updateCommandGate(address commandGate_) external onlyRole(Roles.UPGRADER_ROLE) {
+    commandGateAddress = commandGate_;
   }
 
   function _authorizeUpgrade(address newImplementation) internal override onlyRole(Roles.OPERATOR_ROLE) {}
