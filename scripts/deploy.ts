@@ -2,8 +2,6 @@ import { Contract, ContractFactory } from "ethers";
 import { ethers, upgrades } from "hardhat";
 
 async function main() {
-  //const [deployer] = await ethers.getSigner
-  //s();
   const PredictTeamWin: ContractFactory = await ethers.getContractFactory("PredictTeamWin");
   const predictTeamWin: Contract = await upgrades.deployProxy(
     PredictTeamWin,
